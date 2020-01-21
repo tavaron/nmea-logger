@@ -24,45 +24,44 @@ func i2cInitBmxx80(data *i2cConnectionData) error {
 	if err != nil {
 		return err
 	}
-	data.errChan<-Error.New(Error.Debug, "bmxx80 i2c device is open")
+	data.errorChan <- Error.New(Error.Debug, "bmxx80 i2c device is open")
 	data.Stop = dev.Halt
 
 	envCh, err := dev.SenseContinuous(time.Second)
 	if err != nil {
 		return err
 	}
-	data.errChan<-Error.New(Error.Debug, "Bmxx80 is in continuous sense mode")
+	data.errorChan <- Error.New(Error.Debug, "Bmxx80 is in continuous sense mode")
 	go i2cToNmeaBmxx80(data, envCh, 0x76)
 	return nil
 }
 
-
-
-func i2cToNmeaBmxx80(data *i2cConnectionData, envCh <-chan physic.Env,id uint32) {
+func i2cToNmeaBmxx80(data *i2cConnectionData, envCh <-chan physic.Env, id uint32) {
 	//println("channel to Bmxx80 is been watched")
 	for {
 
 		select {
-		case env , chOpen := <-envCh:
+		case env, chOpen := <-envCh:
 			if chOpen != true {
-				data.errChan<-Error.New(Error.Low,"channel to Bmxx80 was closed")
+				data.errorChan <- Error.New(Error.Low, "channel to Bmxx80 was closed")
 				return
 			}
 			//println("received data on channel to Bmxx80")
-			temp := int(env.Temperature/(physic.MilliKelvin))	// milli kelvin
-			humi := int(env.Humidity/physic.MilliRH)			// tenth percent rH
-			pres := int(env.Pressure/(physic.Pascal))			// pascals
+			temp := int(env.Temperature / (physic.MilliKelvin)) // milli kelvin
+			humi := int(env.Humidity / physic.MilliRH)          // tenth percent rH
+			pres := int(env.Pressure / (physic.Pascal))         // pascals
 			nmeaSentence := "$--PAD,"
 			nmeaSentence += strconv.Itoa(temp) + ","
 			nmeaSentence += strconv.Itoa(humi) + ","
-			nmeaSentence += strconv.Itoa(pres) + ",*PP"	// TODO implement nmea checksum
+			nmeaSentence += strconv.Itoa(pres) + ",*PP" // TODO implement NMEA checksum
 
-			data.nmeaChan <- nmea.Data{
-				DeviceID:  	id,
-				Timestamp: 	time.Now().Unix(),
-				Type:		"--PAD",
-				Sentence: 	nmeaSentence,
+			nmeaData, err := nmea.NewData(nmeaSentence, data.DeviceID)
+			if err != nil {
+				data.errorChan <- Error.Err(Error.Low, err)
+			} else {
+				data.nmeaChan <- nmeaData
 			}
+
 		}
 	}
 }

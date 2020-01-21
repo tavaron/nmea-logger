@@ -6,23 +6,18 @@ import (
 	"time"
 )
 
-
-
 type stopFunc func() error
-
 
 type connectionData struct {
 	//
-	DeviceID uint32
-	nmeaChan chan<- nmea.Data
+	DeviceID     uint32
+	nmeaChan     chan<- *nmea.Data
 	intervalInMs uint
 
 	Stop stopFunc
 
-	errChan chan<- Error.Error
+	errorChan chan<- *Error.Error
 }
-
-
 
 const (
 	SENSORINTERVALLINMSEC    = time.Millisecond * 100
