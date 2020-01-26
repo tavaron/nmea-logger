@@ -21,7 +21,7 @@ type Data struct {
 	Data      DataMap `bson:"data"`
 }
 
-func NewData(sentence string, deviceID uint32) (*Data, error) {
+func NewData(sentence string, deviceID int64) (*Data, error) {
 	var d Data
 	d.Timestamp = time.Now().Unix()
 	d.Data = make(DataMap)
@@ -41,23 +41,24 @@ func NewData(sentence string, deviceID uint32) (*Data, error) {
 	return &d, err
 }
 
-func Average(data []DataMap) (*Data, error) {
-	var result Data
+func Average(data []DataMap) (*DataMap, error) {
+	var result DataMap
+	result = make(DataMap)
 	amounts := make(map[string]int)
 	for _, currentMap := range data {
 		for key, value := range currentMap {
-			result.Data[key] += value
+			result[key] += value
 			amounts[key] += 1
 		}
 	}
-	for key := range result.Data {
-		result.Data[key] /= float64(amounts[key])
+	for key, value := range result {
+		result[key] = value / float64(amounts[key])
 	}
 	return &result, nil
 }
 
-func (d *Data) DeviceID() uint32 {
-	return uint32(d.Data["deviceid"])
+func (d *Data) DeviceID() int64 {
+	return int64(d.Data["deviceid"])
 }
 
 func (d *Data) FromRMCString(buffer []string) error {
@@ -194,4 +195,12 @@ func (d *Data) FromRAWString(buffer []string) error {
 		}
 	}
 	return nil
+}
+
+func GetType(s string) string {
+	sub := strings.Split(s, ",")
+	if len(sub) > 0 {
+		return sub[0]
+	}
+	return ""
 }

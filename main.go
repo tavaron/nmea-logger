@@ -2,9 +2,10 @@ package main
 
 import (
 	"./Error"
-	"./connection"
 	"./database"
 	"./nmea"
+	"./sensors"
+	sensorCfg "./sensors/config"
 )
 
 //TODO config files
@@ -44,10 +45,17 @@ func main() {
 		StopConsole:   make(chan bool, 1),
 	}
 
-	go sensors.I2cInit(channels.In, "", channels.Error)
-	go sensors.SerialInit(channels.In, "", channels.Error)
-	go nmea2mongo.Run(channels.MongoDb, channels.Error)
 	go nmeaDispatcher(channels)
+
+	mongoDb := nmea2mongo.New(channels.MongoDb, channels.Error)
+	mongoDb.RecalculateAverage()
+	mongoDb.Run(false)
+
+	sensorEng := sensors.NewEngine(channels.In, channels.Error)
+	configGPS := sensorCfg.DefaultSerial()
+	configBmxx80 := sensorCfg.DefaultI2C()
+	sensorEng.Connect(configGPS)
+	sensorEng.Connect(configBmxx80)
 
 	for err := range channels.Error {
 		switch err.Lvl {
@@ -71,9 +79,6 @@ func main() {
 
 func nmeaDispatcher(channels *ChannelList) {
 	for data := range channels.In {
-		//print( strconv.FormatUint(uint64(nmea.DeviceID()), 10) + ": " + nmea.Sentence + "\n", )
 		channels.MongoDb <- data
 	}
 }
-
-// TODO output to (virtual) serial port
